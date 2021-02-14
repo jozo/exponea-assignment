@@ -10,6 +10,8 @@ python = "^3.8"
 fastapi = "^0.63.0"
 uvicorn = {extras = ["standard"], version = "^0.13.3"}
 httpx = "^0.16.1"
+orjson = "^3.4.8"
+logzero = "^1.6.3"
 
 [tool.poetry.dev-dependencies]
 
