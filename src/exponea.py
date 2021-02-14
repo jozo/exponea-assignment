@@ -6,7 +6,7 @@ import orjson
 from logzero import logger
 from pydantic import BaseModel, ValidationError
 
-from src.config import MAX_CONN, MAX_KEEP_ALIVE, URL
+from config import MAX_CONN, MAX_KEEP_ALIVE, URL
 
 client = httpx.AsyncClient(
     limits=httpx.Limits(
@@ -52,5 +52,5 @@ def collect_response(task: asyncio.Future) -> dict:
         logger.error("Exponea API error. %s", e)
     except (orjson.JSONDecodeError, ValidationError) as e:
         logger.error("Can't parse response body. %s", e)
-    except:
-        logger.exception("Unknown error")
+    except Exception as e:
+        logger.error("Unexpected exception: %s", e)

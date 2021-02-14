@@ -1,3 +1,11 @@
 # exponea-assignment
 
-Endpoints must respect this timeout value and always return the response within a given timeout.
+
+## Docker
+```shell
+docker-compose up
+```
+
+
+## Docs (Open API)
+http://0.0.0.0:8000/docs

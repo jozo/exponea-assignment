@@ -6,8 +6,8 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import ORJSONResponse
 from logzero import logger
 
-from src.config import HOST, MAX_TIMEOUT, PORT, REQUESTS_LIMIT
-from src.exponea import call_exponea, client, collect_response, collect_responses
+from config import HOST, MAX_TIMEOUT, PORT, REQUESTS_LIMIT
+from exponea import call_exponea, client, collect_response, collect_responses
 
 app = FastAPI()
 
@@ -21,7 +21,9 @@ async def shutdown():
 async def validate_timeout(timeout: int = 1000):
     timeout = timeout / 1000
     if timeout > MAX_TIMEOUT:
-        raise HTTPException(400, detail=f"Invalid timeout - maximum is {MAX_TIMEOUT*1000} ms")
+        raise HTTPException(
+            400, detail=f"Invalid timeout - maximum is {MAX_TIMEOUT*1000} ms"
+        )
     return timeout
 
 
@@ -48,7 +50,7 @@ async def api_all(timeout: float = Depends(validate_timeout)):
     tasks = [call_exponea(timeout) for _ in range(REQUESTS_LIMIT)]
     done, pending = await asyncio.wait(tasks, timeout=timeout)
     cancel_tasks(pending)
-    logger.info("%d tasks done, %d time outed", len(done), len(pending))
+    logger.info("%d tasks done, %d over timeout", len(done), len(pending))
 
     results = collect_responses(done)
     if pending or len(results) == 0:
@@ -69,7 +71,7 @@ async def api_first(timeout: float = Depends(validate_timeout)):
         tasks, timeout=timeout, return_when=asyncio.FIRST_COMPLETED
     )
     cancel_tasks(pending)
-    logger.info("%d tasks done, %d time outed", len(done), len(pending))
+    logger.info("%d tasks done, %d over timeout", len(done), len(pending))
 
     results = collect_responses(done)
     if results:
@@ -87,7 +89,7 @@ async def api_within_timeout(timeout: float = Depends(validate_timeout)):
     """
     tasks = [call_exponea(timeout) for _ in range(REQUESTS_LIMIT)]
     done, pending = await asyncio.wait(tasks, timeout=timeout)
-    logger.info("%d tasks done, %d time outed", len(done), len(pending))
+    logger.info("%d tasks done, %d over timeout", len(done), len(pending))
 
     cancel_tasks(pending)
     return collect_responses(done)
@@ -110,7 +112,7 @@ async def api_smart(timeout: float = Depends(validate_timeout)):
     tasks = [call_exponea(timeout) for _ in range(REQUESTS_LIMIT)]
     # Fire first task
     done, pending = await asyncio.wait(
-        [tasks[0]], timeout=0.1, return_when=asyncio.FIRST_COMPLETED
+        [tasks[0]], timeout=0.3, return_when=asyncio.FIRST_COMPLETED
     )
     if done:
         result = collect_response(list(done)[0])
@@ -121,7 +123,7 @@ async def api_smart(timeout: float = Depends(validate_timeout)):
         tasks, timeout=timeout, return_when=asyncio.FIRST_COMPLETED
     )
     cancel_tasks(pending)
-    logger.info("%d tasks done, %d time outed", len(done), len(pending))
+    logger.info("%d tasks done, %d over timeout", len(done), len(pending))
 
     results = collect_responses(done)
     return prepare_response(results[0] if results else None)
