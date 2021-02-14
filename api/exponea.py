@@ -6,7 +6,7 @@ import orjson
 from logzero import logger
 from pydantic import BaseModel, ValidationError
 
-from .config import MAX_CONN, MAX_KEEP_ALIVE, URL
+from api.config import MAX_CONN, MAX_KEEP_ALIVE, URL
 
 client = httpx.AsyncClient(
     limits=httpx.Limits(

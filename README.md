@@ -2,14 +2,14 @@
 
 Implemented in Python with FastAPI
 
-- Settings can be changed via env variables - check `src/config.py`
+- Settings can be changed via env variables - check `api/config.py`
 - To start the service use docker or poetry
 
 
 ## Poetry
 ```shell
 poetry install
-poetry run python api/main.py
+poetry run python -m api.main
 ```
 
 ## Docker
@@ -34,18 +34,11 @@ http://0.0.0.0:8000/docs
 ## Discussion
 
 ### Can be improved
-- Write unit tests
 - Better logging (structlog, better messages)
-- Sentry monitoring
-- More monitoring (Prometheus?)
+- More monitoring (Sentry, Prometheus?)
 - Health check
 - Tweak configs (max_connections, max_keep_alive), number of workers
 - Docker - limit memory, cpu
-
-
-### Known edge cases
-how it behaves in certain conditions
-TODO
 
 
 ### Resource requirements
