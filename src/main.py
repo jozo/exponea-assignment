@@ -1,12 +1,13 @@
 import asyncio
+from typing import Iterable, Optional
 
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import ORJSONResponse
 from logzero import logger
 
 from src.config import HOST, MAX_TIMEOUT, PORT, REQUESTS_LIMIT
-from src.exponea import call_exponea, client, collect_responses
+from src.exponea import call_exponea, client, collect_response, collect_responses
 
 app = FastAPI()
 
@@ -17,35 +18,113 @@ async def shutdown():
     await client.aclose()
 
 
-@app.get("/api/all/{timeout}", response_class=ORJSONResponse)
-async def api_all(timeout: int):
-    """Collects all successful responses from Exponea in given timeout
-    :param timeout: milliseconds
-    """
+async def validate_timeout(timeout: int = 1000):
     timeout = timeout / 1000
-    if timeout > MAX_TIMEOUT:   # TODO move to middleware
-        raise HTTPException(400, detail=f"Timeout can be max {MAX_TIMEOUT*1000}")
+    if timeout > MAX_TIMEOUT:
+        raise HTTPException(400, detail=f"Invalid timeout - maximum is {MAX_TIMEOUT*1000} ms")
+    return timeout
+
+
+def cancel_tasks(tasks: Iterable):
+    for t in tasks:
+        t.cancel()
+
+
+def prepare_response(data: Optional):
+    if data is not None:
+        return data
+    else:
+        raise HTTPException(500, detail="Internal error")
+
+
+@app.get("/api/all/", response_class=ORJSONResponse)
+async def api_all(timeout: float = Depends(validate_timeout)):
+    """Collects all successful responses from Exponea testing HTTP server
+    and returns the result as an array.
+
+    If timeout is reached before all requests finish, or none of the responses
+    were successful, the endpoint returns an error.
+    """
     tasks = [call_exponea(timeout) for _ in range(REQUESTS_LIMIT)]
     done, pending = await asyncio.wait(tasks, timeout=timeout)
-    for t in pending:
-        t.cancel()
+    cancel_tasks(pending)
     logger.info("%d tasks done, %d time outed", len(done), len(pending))
+
+    results = collect_responses(done)
+    if pending or len(results) == 0:
+        results = None
+    return prepare_response(results)
+
+
+@app.get("/api/first/", response_class=ORJSONResponse)
+async def api_first(timeout: float = Depends(validate_timeout)):
+    """Returns the first successful response that returns from Exponea testing
+    HTTP server.
+
+    If timeout is reached before any successful response was received,
+    the endpoint returns an error.
+    """
+    tasks = [call_exponea(timeout) for _ in range(REQUESTS_LIMIT)]
+    done, pending = await asyncio.wait(
+        tasks, timeout=timeout, return_when=asyncio.FIRST_COMPLETED
+    )
+    cancel_tasks(pending)
+    logger.info("%d tasks done, %d time outed", len(done), len(pending))
+
+    results = collect_responses(done)
+    if results:
+        return prepare_response(results[0])
+    return prepare_response(None)
+
+
+@app.get("/api/within-timeout/", response_class=ORJSONResponse)
+async def api_within_timeout(timeout: float = Depends(validate_timeout)):
+    """Collects all successful responses that return within a given timeout.
+
+    If a timeout is reached before any of the 3 requests finish, the server
+    should return an empty array instead of an error.
+    (This means that this endpoint should never return an error).
+    """
+    tasks = [call_exponea(timeout) for _ in range(REQUESTS_LIMIT)]
+    done, pending = await asyncio.wait(tasks, timeout=timeout)
+    logger.info("%d tasks done, %d time outed", len(done), len(pending))
+
+    cancel_tasks(pending)
     return collect_responses(done)
 
 
-@app.get("/api/first")
-async def api_first():
-    return {"Hello": "First"}
+@app.get("/api/smart/", response_class=ORJSONResponse)
+async def api_smart(timeout: float = Depends(validate_timeout)):
+    """Instead of firing all 3 requests at once, this endpoint will first fire
+    only a single request to Exponea testing HTTP server.
 
+    Then 2 scenarios can happen:
+        a. Received a successful response within 300 milliseconds:
+            return the response
+        b. Didn't receive a response within 300 milliseconds, or the response
+        was not successful:
+            fire another 2 requests to Exponea testing HTTP server. Return
+            the first successful response from any of those 3 requests
+            (including the first one).
+    """
+    tasks = [call_exponea(timeout) for _ in range(REQUESTS_LIMIT)]
+    # Fire first task
+    done, pending = await asyncio.wait(
+        [tasks[0]], timeout=0.1, return_when=asyncio.FIRST_COMPLETED
+    )
+    if done:
+        result = collect_response(list(done)[0])
+        if result:
+            return result
+    # Continue with the first and fire 2 more
+    done, pending = await asyncio.wait(
+        tasks, timeout=timeout, return_when=asyncio.FIRST_COMPLETED
+    )
+    cancel_tasks(pending)
+    logger.info("%d tasks done, %d time outed", len(done), len(pending))
 
-@app.get("/api/within-timeout")
-async def api_timeout():
-    return {"Hello": "Timeout"}
-
-
-@app.get("/api/smart")
-async def api_smart():
-    return {"Hello": "Smart"}
+    results = collect_responses(done)
+    return prepare_response(results[0] if results else None)
 
 
 if __name__ == "__main__":

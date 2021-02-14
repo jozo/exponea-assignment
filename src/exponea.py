@@ -1,5 +1,5 @@
 import asyncio
-from typing import Set
+from typing import Iterable, List
 
 import httpx
 import orjson
@@ -7,7 +7,6 @@ from logzero import logger
 from pydantic import BaseModel, ValidationError
 
 from src.config import MAX_CONN, MAX_KEEP_ALIVE, URL
-
 
 client = httpx.AsyncClient(
     limits=httpx.Limits(
@@ -35,17 +34,23 @@ async def call_exponea(timeout: float, api: httpx.AsyncClient = client):
         raise ApiError("Problem with connection to API")
 
 
-def collect_responses(tasks: Set[asyncio.Future]):
+def collect_responses(tasks: Iterable[asyncio.Future]) -> List[dict]:
     results = []
     for t in tasks:
-        try:
-            data = orjson.loads(t.result())
-            data = TimeResponse(**data)
-            results.append(data.dict())
-        except ApiError as e:
-            logger.error("Exponea API error. %s", e)
-        except (orjson.JSONDecodeError, ValidationError) as e:
-            logger.error("Can't parse response body. %s", e)
-        except:
-            logger.exception("Unknown error")
+        data = collect_response(t)
+        if data:
+            results.append(data)
     return results
+
+
+def collect_response(task: asyncio.Future) -> dict:
+    try:
+        data = orjson.loads(task.result())
+        data = TimeResponse(**data)
+        return data.dict()
+    except ApiError as e:
+        logger.error("Exponea API error. %s", e)
+    except (orjson.JSONDecodeError, ValidationError) as e:
+        logger.error("Can't parse response body. %s", e)
+    except:
+        logger.exception("Unknown error")
