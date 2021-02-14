@@ -6,7 +6,7 @@ import orjson
 from logzero import logger
 from pydantic import BaseModel, ValidationError
 
-from config import MAX_CONN, MAX_KEEP_ALIVE, URL
+from .config import MAX_CONN, MAX_KEEP_ALIVE, URL
 
 client = httpx.AsyncClient(
     limits=httpx.Limits(
@@ -23,9 +23,9 @@ class ApiError(Exception):
     pass
 
 
-async def call_exponea(timeout: float, api: httpx.AsyncClient = client):
+async def call_exponea(timeout: float, api_client: httpx.AsyncClient = client):
     try:
-        r = await api.get(URL, timeout=timeout)
+        r = await api_client.get(URL, timeout=timeout)
         if r.status_code == 200:
             return r.text
         else:

@@ -9,12 +9,17 @@ Implemented in Python with FastAPI
 ## Poetry
 ```shell
 poetry install
-poetry run python src/main.py
+poetry run python api/main.py
 ```
 
 ## Docker
 ```shell
 docker-compose up
+```
+
+## Run tests
+```shell
+poetry run pytest
 ```
 
 
@@ -26,14 +31,17 @@ http://0.0.0.0:8000/docs
 - Graceful shutdown of `uvicorn` in docker: https://github.com/encode/uvicorn/issues/852
 
 
-## Can be improved
+## Discussion
+
+### Can be improved
 - Write unit tests
+- Better logging (structlog, better messages)
 - Sentry monitoring
 - More monitoring (Prometheus?)
 - Health check
 - Tweak configs (max_connections, max_keep_alive), number of workers
+- Docker - limit memory, cpu
 
-## Discussion
 
 ### Known edge cases
 how it behaves in certain conditions
@@ -41,7 +49,7 @@ TODO
 
 
 ### Resource requirements
-- 1 process around 
+- 1 worker ~ 370MB of memory
 
 
 ### How many concurrent requests can the server handle?

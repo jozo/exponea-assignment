@@ -12,7 +12,7 @@ ENV PYTHONUNBUFFERED=1
 ENV VIRTUAL_ENV=/opt/venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-COPY ./src /app
+COPY ./api /app
 
 # Compile to start faster
 RUN python -m compileall /app

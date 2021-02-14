@@ -14,7 +14,17 @@ orjson = "^3.4.8"
 logzero = "^1.6.3"
 
 [tool.poetry.dev-dependencies]
+pytest = "^6.2.2"
+pytest-asyncio = "^0.14.0"
+asynctest = "^0.13.0"
+pytest-cov = "^2.11.1"
+requests = "^2.25.1"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+
+[tool.pytest.ini_options]
+addopts = "--cov=api"
+filterwarnings = "ignore:.*\"@coroutine\" decorator is deprecated.*:DeprecationWarning"

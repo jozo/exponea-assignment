@@ -6,8 +6,8 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import ORJSONResponse
 from logzero import logger
 
-from config import HOST, MAX_TIMEOUT, PORT, REQUESTS_LIMIT
-from exponea import call_exponea, client, collect_response, collect_responses
+from .config import HOST, MAX_TIMEOUT, PORT, REQUESTS_LIMIT
+from .exponea import call_exponea, client, collect_response, collect_responses
 
 app = FastAPI()
 
