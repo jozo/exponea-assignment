@@ -109,18 +109,23 @@ async def api_smart(timeout: float = Depends(validate_timeout)):
             the first successful response from any of those 3 requests
             (including the first one).
     """
-    tasks = [call_exponea(timeout) for _ in range(REQUESTS_LIMIT)]
     # Fire first task
+    first_task = asyncio.create_task(call_exponea(timeout), name="first")
     done, pending = await asyncio.wait(
-        [tasks[0]], timeout=0.3, return_when=asyncio.FIRST_COMPLETED
+        [first_task], timeout=0.3, return_when=asyncio.FIRST_COMPLETED
     )
     if done:
+        pending_first = []
         result = collect_response(list(done)[0])
         if result:
             return result
+    else:
+        pending_first = list(pending)
+
     # Continue with the first and fire 2 more
+    tasks = [call_exponea(timeout) for _ in range(REQUESTS_LIMIT-1)]
     done, pending = await asyncio.wait(
-        tasks, timeout=timeout, return_when=asyncio.FIRST_COMPLETED
+        tasks+pending_first, timeout=timeout, return_when=asyncio.FIRST_COMPLETED
     )
     cancel_tasks(pending)
     logger.info("%d tasks done, %d over timeout", len(done), len(pending))
